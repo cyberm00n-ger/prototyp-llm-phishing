@@ -146,7 +146,7 @@ def extract_text_from_pdf(pdf_file):
         return f"Fehler beim Extrahieren des Textes: {str(e)}"
 
 st.image(
-    "https://nextcyber.eu/betruglogo.png",
+    "https://nextcyber.eu/betruglogo2.png",
     use_column_width=True
 )
 # Streamlit app
