@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-st.title("🚀 Absatzanalyse in Sekunden")
+st.title("Absatzanalyse in Sekunden")
 
 uploaded = st.file_uploader("CSV hochladen")
 if uploaded:
