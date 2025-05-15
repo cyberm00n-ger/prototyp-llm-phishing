@@ -172,11 +172,10 @@ def extract_text_from_pdf(pdf_file):
 # Streamlit app
 # Display logo at the top
 st.image(
-    "https://raw.githubusercontent.com/your-username/fraud-detection-app/main/assets/logo.png",
-    caption="Fraud Detection App",
+    "https://nextcyber.eu/betruglogo2.png",
     use_column_width=True
 )
-st.title("Betrugserkennung (Phishing & Co.)")
+st.title("Betrugserkennungstool")
 
 # Create tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen", "Historie"])
