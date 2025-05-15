@@ -147,7 +147,6 @@ def extract_text_from_pdf(pdf_file):
 
 st.image(
     "https://nextcyber.eu/betruglogo.png",
-    caption="Fraud Detection App",
     use_column_width=True
 )
 # Streamlit app
