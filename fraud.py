@@ -8,10 +8,12 @@ import json
 import os
 from cryptography.fernet import Fernet
 from PyPDF2 import PdfReader
+from datetime import datetime
 
-# File paths for storing the API key and Fernet key
+# File paths for storing the API key, Fernet key, and analysis history
 API_KEY_FILE = "api_key.json"
 FERNET_KEY_FILE = "fernet_key.key"
+HISTORY_FILE = "analysis_history.json"
 
 # Function to generate or load Fernet key
 def get_fernet_key():
@@ -44,17 +46,39 @@ def load_api_key():
             return ""
     return ""
 
+# Function to save analysis history
+def save_analysis_history(analysis_type, input_data, output_data, filename=None):
+    history = load_analysis_history()
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "type": analysis_type,
+        "input": input_data,
+        "output": output_data,
+        "filename": filename
+    }
+    history.append(entry)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
+
+# Function to load analysis history
+def load_analysis_history():
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return []
+
 # Initialize session state for API key
 if "openai_api_key" not in st.session_state:
     st.session_state.openai_api_key = load_api_key()
 
 # Function to initialize OpenAI client
 def get_openai_client():
-    if not st.session_state.openai_api_key:
+    api_key = st.session_state.openai_api_key or st.secrets.get("OPENAI_API_KEY", "")
+    if not api_key:
         st.error("Bitte geben Sie einen OpenAI API-Schlüssel in den Einstellungen ein.")
         return None
     try:
-        return OpenAI(api_key=st.session_state.openai_api_key)
+        return OpenAI(api_key=api_key)
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des OpenAI-Clients: {str(e)}")
         return None
@@ -92,7 +116,7 @@ def detect_fraud_text(text):
         return f"Fehler bei der Textanalyse: {str(e)}"
 
 # Function to analyze image for fraud/phishing
-def detect_fraud_image(image):
+def detect_fraud_image(image, filename):
     client = get_openai_client()
     if not client:
         return "Kein gültiger OpenAI-Client verfügbar."
@@ -145,15 +169,17 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return f"Fehler beim Extrahieren des Textes: {str(e)}"
 
+# Streamlit app
+# Display logo at the top
 st.image(
-    "https://nextcyber.eu/betruglogo2.png",
+    "https://raw.githubusercontent.com/your-username/fraud-detection-app/main/assets/logo.png",
+    caption="Fraud Detection App",
     use_column_width=True
 )
-# Streamlit app
-st.title("Betrugserkennungstool")
+st.title("Betrugserkennung (Phishing & Co.)")
 
 # Create tabs
-tab1, tab2, tab3, tab4 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen", "Historie"])
 
 # Tab 1: Text Analysis
 with tab1:
@@ -166,6 +192,8 @@ with tab1:
                 result = detect_fraud_text(user_text)
                 st.subheader("Ergebnis")
                 st.write(result)
+                # Save to history
+                save_analysis_history("text", user_text, result)
         else:
             st.error("Bitte geben Sie einen Text ein.")
 
@@ -186,12 +214,18 @@ with tab2:
     uploaded_file = st.file_uploader("Bild auswählen", type=["png", "jpg", "jpeg"], key="image_upload")
     if uploaded_file:
         image = Image.open(uploaded_file)
+        filename = uploaded_file.name
         st.image(image, caption="Hochgeladenes Bild", use_column_width=True)
         if st.button("Bild analysieren"):
             with st.spinner("Analysiere Bild..."):
-                result = detect_fraud_image(image)
+                result = detect_fraud_image(image, filename)
                 st.subheader("Ergebnis")
                 st.write(result)
+                # Save to history
+                buffered = io.BytesIO()
+                image.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                save_analysis_history("image", img_str, result, filename)
 
 # Tab 3: PDF Analysis
 with tab3:
@@ -199,6 +233,7 @@ with tab3:
     st.write("Laden Sie eine PDF-Datei (z. B. eine E-Mail oder ein Dokument) hoch, um sie auf Phishing oder Betrug zu überprüfen.")
     uploaded_pdf = st.file_uploader("PDF auswählen", type=["pdf"], key="pdf_upload")
     if uploaded_pdf:
+        filename = uploaded_pdf.name
         with st.spinner("Extrahiere Text aus PDF..."):
             extracted_text = extract_text_from_pdf(uploaded_pdf)
         st.text_area("Extrahierter Text", extracted_text, height=200, disabled=True)
@@ -208,6 +243,8 @@ with tab3:
                     result = detect_fraud_text(extracted_text)
                     st.subheader("Ergebnis")
                     st.write(result)
+                    # Save to history
+                    save_analysis_history("pdf", extracted_text, result, filename)
             else:
                 st.error("Kein analysierbarer Text im PDF gefunden.")
 
@@ -228,3 +265,29 @@ with tab4:
             st.success("API-Schlüssel gespeichert!")
         else:
             st.error("Bitte geben Sie einen API-Schlüssel ein.")
+
+# Tab 5: History
+with tab5:
+    st.subheader("Analyse-Historie")
+    st.write("Hier sehen Sie alle bisherigen Analysen mit Eingaben und Ergebnissen.")
+    history = load_analysis_history()
+    if history:
+        for entry in reversed(history):  # Show newest first
+            st.markdown(f"**Zeitstempel**: {entry['timestamp']}")
+            st.markdown(f"**Typ**: {entry['type'].capitalize()}")
+            if entry["filename"]:
+                st.markdown(f"**Dateiname**: {entry['filename']}")
+            if entry["type"] == "text":
+                st.markdown("**Eingabe**:")
+                st.text_area("Text", entry["input"], height=100, disabled=True, key=f"text_{entry['timestamp']}")
+            elif entry["type"] == "image":
+                st.markdown("**Eingabe**:")
+                st.image(base64.b64decode(entry["input"]), caption="Hochgeladenes Bild", use_column_width=True)
+            elif entry["type"] == "pdf":
+                st.markdown("**Eingabe**:")
+                st.text_area("Extrahierter Text", entry["input"], height=100, disabled=True, key=f"pdf_{entry['timestamp']}")
+            st.markdown("**Ergebnis**:")
+            st.text_area("Analyse", entry["output"], height=100, disabled=True, key=f"output_{entry['timestamp']}")
+            st.markdown("---")
+    else:
+        st.info("Keine Analysen in der Historie vorhanden.")
