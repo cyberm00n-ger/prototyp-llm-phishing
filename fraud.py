@@ -145,6 +145,11 @@ def extract_text_from_pdf(pdf_file):
     except Exception as e:
         return f"Fehler beim Extrahieren des Textes: {str(e)}"
 
+st.image(
+    "https://raw.githubusercontent.com/cyberm00n-ger/prototyp-llm-phishing/blob/main/betruglogo.png",
+    caption="Fraud Detection App",
+    use_column_width=True
+)
 # Streamlit app
 st.title("Betrugserkennungstool")
 
