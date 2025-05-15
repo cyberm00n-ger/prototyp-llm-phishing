@@ -7,8 +7,7 @@ import io
 import json
 import os
 from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from PyPDF2 import PdfReader
 
 # File paths for storing the API key and Fernet key
 API_KEY_FILE = "api_key.json"
@@ -133,11 +132,24 @@ def detect_fraud_image(image):
     except Exception as e:
         return f"Fehler bei der Bildanalyse: {str(e)}"
 
+# Function to extract text from PDF
+def extract_text_from_pdf(pdf_file):
+    try:
+        pdf_reader = PdfReader(pdf_file)
+        text = ""
+        for page in pdf_reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+        return text.strip() if text else "Kein Text im PDF gefunden."
+    except Exception as e:
+        return f"Fehler beim Extrahieren des Textes: {str(e)}"
+
 # Streamlit app
-st.title("Betrugserkennungstool")
+st.title("Betrugserkennung (Phishing & Co.)")
 
 # Create tabs
-tab1, tab2, tab3 = st.tabs(["Textanalyse", "Fotoanalyse", "Einstellungen"])
+tab1, tab2, tab3, tab4 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen"])
 
 # Tab 1: Text Analysis
 with tab1:
@@ -167,7 +179,7 @@ with tab1:
 with tab2:
     st.subheader("Fotoanalyse")
     st.write("Laden Sie ein Bild (z. B. einen Screenshot einer E-Mail oder Website) hoch, um es auf Phishing oder Betrug zu überprüfen.")
-    uploaded_file = st.file_uploader("Bild auswählen", type=["png", "jpg", "jpeg"])
+    uploaded_file = st.file_uploader("Bild auswählen", type=["png", "jpg", "jpeg"], key="image_upload")
     if uploaded_file:
         image = Image.open(uploaded_file)
         st.image(image, caption="Hochgeladenes Bild", use_column_width=True)
@@ -177,8 +189,26 @@ with tab2:
                 st.subheader("Ergebnis")
                 st.write(result)
 
-# Tab 3: Settings
+# Tab 3: PDF Analysis
 with tab3:
+    st.subheader("PDF-Analyse")
+    st.write("Laden Sie eine PDF-Datei (z. B. eine E-Mail oder ein Dokument) hoch, um sie auf Phishing oder Betrug zu überprüfen.")
+    uploaded_pdf = st.file_uploader("PDF auswählen", type=["pdf"], key="pdf_upload")
+    if uploaded_pdf:
+        with st.spinner("Extrahiere Text aus PDF..."):
+            extracted_text = extract_text_from_pdf(uploaded_pdf)
+        st.text_area("Extrahierter Text", extracted_text, height=200, disabled=True)
+        if st.button("PDF analysieren"):
+            if extracted_text and not extracted_text.startswith("Fehler"):
+                with st.spinner("Analysiere PDF-Inhalt..."):
+                    result = detect_fraud_text(extracted_text)
+                    st.subheader("Ergebnis")
+                    st.write(result)
+            else:
+                st.error("Kein analysierbarer Text im PDF gefunden.")
+
+# Tab 4: Settings
+with tab4:
     st.subheader("Einstellungen")
     st.write("Geben Sie Ihren OpenAI API-Schlüssel ein. Der Schlüssel wird verschlüsselt gespeichert und bleibt nach Neustart erhalten.")
     api_key_input = st.text_input(
