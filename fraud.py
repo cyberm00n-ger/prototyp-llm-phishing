@@ -146,7 +146,7 @@ def extract_text_from_pdf(pdf_file):
         return f"Fehler beim Extrahieren des Textes: {str(e)}"
 
 st.image(
-    "https://raw.githubusercontent.com/cyberm00n-ger/prototyp-llm-phishing/blob/main/betruglogo.png",
+    "https://github.com/cyberm00n-ger/prototyp-llm-phishing/blob/main/betruglogo.png?raw=true",
     caption="Fraud Detection App",
     use_column_width=True
 )
