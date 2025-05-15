@@ -99,8 +99,8 @@ def detect_fraud_text(text):
         Text: "{text}"
 
         Antwortformat:
-        Wahrscheinlichkeit: X%
         Erklärung: [Deine Erklärung hier]
+        Wahrscheinlichkeit: X%
         """
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -134,8 +134,8 @@ def detect_fraud_image(image, filename):
         Achte auf visuelle Hinweise wie gefälschte Logos, Rechtschreibfehler, verdächtige Links oder Aufforderungen zur Eingabe persönlicher Daten.
 
         Antwortformat:
-        Wahrscheinlichkeit: X%
         Erklärung: [Deine Erklärung hier]
+        Wahrscheinlichkeit: X%
         """
         response = client.chat.completions.create(
             model="gpt-4o",
