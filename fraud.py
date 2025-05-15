@@ -146,7 +146,7 @@ def extract_text_from_pdf(pdf_file):
         return f"Fehler beim Extrahieren des Textes: {str(e)}"
 
 # Streamlit app
-st.title("Betrugserkennung (Phishing & Co.)")
+st.title("Betrugserkennungstool")
 
 # Create tabs
 tab1, tab2, tab3, tab4 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen"])
