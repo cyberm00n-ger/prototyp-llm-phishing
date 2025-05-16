@@ -10,12 +10,11 @@ from cryptography.fernet import Fernet
 from PyPDF2 import PdfReader
 from datetime import datetime
 
-# File paths for storing the API key, Fernet key, and analysis history
+# File paths for storing the API key and Fernet key (for local use only)
 API_KEY_FILE = "api_key.json"
 FERNET_KEY_FILE = "fernet_key.key"
-HISTORY_FILE = "analysis_history.json"
 
-# Function to generate or load Fernet key
+# Function to generate or load Fernet key (for local use)
 def get_fernet_key():
     if os.path.exists(FERNET_KEY_FILE):
         with open(FERNET_KEY_FILE, "rb") as f:
@@ -26,14 +25,14 @@ def get_fernet_key():
             f.write(key)
         return Fernet(key)
 
-# Function to save encrypted API key
+# Function to save encrypted API key (for local use)
 def save_api_key(api_key):
     fernet = get_fernet_key()
     encrypted_key = fernet.encrypt(api_key.encode())
     with open(API_KEY_FILE, "w") as f:
         json.dump({"encrypted_key": encrypted_key.decode()}, f)
 
-# Function to load encrypted API key
+# Function to load encrypted API key (for local use)
 def load_api_key():
     if os.path.exists(API_KEY_FILE):
         with open(API_KEY_FILE, "r") as f:
@@ -46,9 +45,10 @@ def load_api_key():
             return ""
     return ""
 
-# Function to save analysis history
+# Function to save analysis history (using session state for Streamlit Cloud)
 def save_analysis_history(analysis_type, input_data, output_data, filename=None):
-    history = load_analysis_history()
+    if "history" not in st.session_state:
+        st.session_state.history = []
     entry = {
         "timestamp": datetime.now().isoformat(),
         "type": analysis_type,
@@ -56,26 +56,22 @@ def save_analysis_history(analysis_type, input_data, output_data, filename=None)
         "output": output_data,
         "filename": filename
     }
-    history.append(entry)
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=2)
+    st.session_state.history.append(entry)
 
-# Function to load analysis history
+# Function to load analysis history (from session state)
 def load_analysis_history():
-    if os.path.exists(HISTORY_FILE):
-        with open(HISTORY_FILE, "r") as f:
-            return json.load(f)
-    return []
+    return st.session_state.get("history", [])
 
-# Initialize session state for API key
+# Initialize session state for API key (load local key for testing, if available)
 if "openai_api_key" not in st.session_state:
     st.session_state.openai_api_key = load_api_key()
 
 # Function to initialize OpenAI client
 def get_openai_client():
-    api_key = st.session_state.openai_api_key or st.secrets.get("OPENAI_API_KEY", "")
+    # Prefer st.secrets for Streamlit Cloud, fall back to session state or local file
+    api_key = st.secrets.get("OPENAI_API_KEY", st.session_state.openai_api_key)
     if not api_key:
-        st.error("Bitte geben Sie einen OpenAI API-Schlüssel in den Einstellungen ein.")
+        st.error("Kein OpenAI API-Schlüssel gefunden. Bitte konfigurieren Sie ihn in den Einstellungen oder als Secret in Streamlit Cloud.")
         return None
     try:
         return OpenAI(api_key=api_key)
@@ -99,8 +95,8 @@ def detect_fraud_text(text):
         Text: "{text}"
 
         Antwortformat:
-        Erklärung: [Deine Erklärung hier]
         Wahrscheinlichkeit: X%
+        Erklärung: [Deine Erklärung hier]
         """
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -134,8 +130,8 @@ def detect_fraud_image(image, filename):
         Achte auf visuelle Hinweise wie gefälschte Logos, Rechtschreibfehler, verdächtige Links oder Aufforderungen zur Eingabe persönlicher Daten.
 
         Antwortformat:
-        Erklärung: [Deine Erklärung hier]
         Wahrscheinlichkeit: X%
+        Erklärung: [Deine Erklärung hier]
         """
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -171,11 +167,8 @@ def extract_text_from_pdf(pdf_file):
 
 # Streamlit app
 # Display logo at the top
-st.image(
-    "https://nextcyber.eu/betruglogo2.png",
-    use_column_width=True
-)
-st.title("Betrugserkennungstool")
+
+st.title("Betrugserkennung")
 
 # Create tabs
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Textanalyse", "Fotoanalyse", "PDF-Analyse", "Einstellungen", "Historie"])
@@ -250,7 +243,7 @@ with tab3:
 # Tab 4: Settings
 with tab4:
     st.subheader("Einstellungen")
-    st.write("Geben Sie Ihren OpenAI API-Schlüssel ein. Der Schlüssel wird verschlüsselt gespeichert und bleibt nach Neustart erhalten.")
+    st.write("Geben Sie Ihren OpenAI API-Schlüssel ein (nur für lokale Tests erforderlich; in Streamlit Cloud wird der Schlüssel aus Secrets geladen).")
     api_key_input = st.text_input(
         "OpenAI API-Schlüssel",
         type="password",
